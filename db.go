@@ -18,7 +18,7 @@ func InitDB() error {
 	pass := os.Getenv("DB_PASS")
 	name := os.Getenv("DB_NAME")
 
-	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?charset=utf8mb4&parseTime=True",
+	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?tls=true&charset=utf8mb4&parseTime=True",
 		user, pass, host, port, name)
 
 	var err error
