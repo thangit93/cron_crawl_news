@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"net/smtp"
+	"strings"
 
 	"github.com/jordan-wright/email"
 	"github.com/PuerkitoBio/goquery"
@@ -55,35 +56,42 @@ func crawlDetail(detailURL string, baseURL string) {
 		return
 	}
 
-	tableHTML := updateTableBeforeSendEmail(tableSelection, baseURL)
+	tableHTML, emailTitle, err := updateTableBeforeSendEmail(tableSelection, baseURL)
+
+	if err != nil {
+		log.Println("Lỗi khi lấy HTML bảng:", err)
+		return
+	}
 
 	if tableHTML == "" {
 		log.Println("Không tìm thấy bảng để gửi email")
 		return
 	}
 
-	err = sendEmail("Thông báo tuyển dụng", tableHTML)
+	err = sendEmail(emailTitle, tableHTML)
 	if err != nil {
 		log.Println("Lỗi khi gửi email:", err)
 	}
 }
 
-func updateTableBeforeSendEmail(tableSelection *goquery.Selection, baseURL string) string {
+func updateTableBeforeSendEmail(tableSelection *goquery.Selection, baseURL string) (string, string, error) {
+	var emailTitle string
 	tableSelection.Find("a").Each(func(i int, s *goquery.Selection) {
 		href, exists := s.Attr("href")
 		if exists && len(href) > 0 && href[0] == '/' {
-			// Thêm baseURL trước href tương đối
+			href = strings.Replace(href, "/upload/upload/", "upload/", 1)
 			fullURL := baseURL + href
 			s.SetAttr("href", fullURL)
+			emailTitle = s.Text()
 		}
 	})
 
 	tableHTML, err := goquery.OuterHtml(tableSelection)
 	if err != nil {
 		log.Println("Lỗi lấy HTML bảng:", err)
-		return ""
+		return "", "", err
 	}
-	return tableHTML
+	return tableHTML, emailTitle, nil
 }
 
 func sendEmail(subject string, htmlContent string) error {
