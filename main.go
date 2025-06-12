@@ -1,6 +1,7 @@
 package main
 
 import (
+	"os"
 	"fmt"
 	"log"
 	"net/http"
@@ -14,6 +15,10 @@ import (
 func main() {
 	baseURL := "https://vca.org.vn/"
 	url := baseURL + "frontend/home/search?s=Th%C3%B4ng+b%C3%A1o+tuy%E1%BB%83n+d%E1%BB%A5ng&loaivanban=&issuing_agency=&year=&submit=T%C3%ACm+ki%E1%BA%BFm"
+
+	if err := InitDB(); err != nil {
+		log.Fatalf("❌ Lỗi khởi tạo DB: %v", err)
+	}
 
 	resp, err := http.Get(url)
 	if err != nil {
@@ -29,9 +34,15 @@ func main() {
 	doc.Find("table.table-bordered tbody tr td a").Each(func(i int, s *goquery.Selection) {
 		href, exists := s.Attr("href")
 		if exists {
-			fmt.Printf("Link %d: %s\n", i+1, baseURL + href)
 			detailURL := baseURL + href
-			crawlDetail(detailURL, baseURL)
+			fmt.Printf("Link %d: %s\n", i+1, detailURL)
+			if IsLinkSent(detailURL) {
+				log.Printf("✅ Đã gửi: %s\n", detailURL)
+			} else {
+				log.Printf("🔍 Đang crawl: %s\n", detailURL)
+				crawlDetail(detailURL, baseURL)
+				MarkLinkAsSent(detailURL)
+			}
 		}
 	})
 }
@@ -96,16 +107,15 @@ func updateTableBeforeSendEmail(tableSelection *goquery.Selection, baseURL strin
 
 func sendEmail(subject string, htmlContent string) error {
 	e := email.NewEmail()
-	e.From = "Tên của bạn <your.email@gmail.com>"
-	e.To = []string{"nguoinhan@example.com"}
+	e.From = os.Getenv("SMTP_FROM")
+	e.To = []string{os.Getenv("EMAIL_TO")}
 	e.Subject = subject
 	e.HTML = []byte(htmlContent)
 
-	// SMTP cấu hình (dành cho Gmail hoặc dịch vụ khác)
-	smtpServer := "smtp.ethereal.email"
-	smtpPort := "587"
-	smtpUser := "elliot65@ethereal.email"
-	smtpPass := "NGYDg7jt5PmXZHaw1w" // Dùng App Password nếu là Gmail
+	smtpServer := os.Getenv("SMTP_SERVER")
+	smtpPort := os.Getenv("SMTP_PORT")
+	smtpUser := os.Getenv("SMTP_USER")
+	smtpPass := os.Getenv("SMTP_PASS")
 
 	auth := smtp.PlainAuth("", smtpUser, smtpPass, smtpServer)
 	return e.Send(smtpServer+":"+smtpPort, auth)

@@ -8,7 +8,7 @@ WORKDIR /app
 COPY . .
 RUN go mod download
 
-RUN go build -o crawler main.go
+RUN go build -o crawler
 
 COPY crontab /etc/crontabs/root
 # Start cron in foreground
