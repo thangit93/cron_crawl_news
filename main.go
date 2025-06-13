@@ -1,15 +1,15 @@
 package main
 
 import (
-	"os"
 	"fmt"
+	"github.com/PuerkitoBio/goquery"
+	"github.com/jordan-wright/email"
 	"log"
 	"net/http"
 	"net/smtp"
+	"os"
 	"strings"
-
-	"github.com/jordan-wright/email"
-	"github.com/PuerkitoBio/goquery"
+	"sync"
 )
 
 func main() {
@@ -31,6 +31,9 @@ func main() {
 		log.Fatalf("Lỗi khi phân tích HTML: %v", err)
 	}
 
+	var wg sync.WaitGroup
+	sem := make(chan struct{}, 5)
+
 	doc.Find("table.table-bordered tbody tr td a").Each(func(i int, s *goquery.Selection) {
 		href, exists := s.Attr("href")
 		if exists {
@@ -38,13 +41,19 @@ func main() {
 			fmt.Printf("Link %d: %s\n", i+1, detailURL)
 			if IsLinkSent(detailURL) {
 				log.Printf("✅ Đã gửi: %s\n", detailURL)
-			} else {
-				log.Printf("🔍 Đang crawl: %s\n", detailURL)
-				crawlDetail(detailURL, baseURL)
-				MarkLinkAsSent(detailURL)
+				return
 			}
+			sem <- struct{}{}
+			wg.Add(1)
+			go func(url string) {
+				defer wg.Done()
+				defer func() { <-sem }() // release slot
+				log.Printf("🔍 Đang crawl: %s\n", url)
+				crawlDetail(url, baseURL)
+			}(detailURL)
 		}
 	})
+	wg.Wait()
 }
 
 func crawlDetail(detailURL string, baseURL string) {
@@ -83,6 +92,7 @@ func crawlDetail(detailURL string, baseURL string) {
 	if err != nil {
 		log.Println("Lỗi khi gửi email:", err)
 	}
+	MarkLinkAsSent(detailURL)
 }
 
 func updateTableBeforeSendEmail(tableSelection *goquery.Selection, baseURL string) (string, string, error) {
