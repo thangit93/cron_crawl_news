@@ -1,11 +1,21 @@
 package main
 
 import (
+	"sync"
 	"webcrawler/sites"
 )
 
 func main() {
-	//sites.GetDocs()
+	var wg = sync.WaitGroup{}
+	wg.Add(2)
 
-	sites.GetNews()
+	go func() {
+		defer wg.Done()
+		sites.GetDocs()
+	}()
+	go func() {
+		defer wg.Done()
+		sites.GetNews()
+	}()
+	wg.Wait()
 }
