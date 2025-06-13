@@ -51,14 +51,14 @@ func GetDocs() {
 				defer wg.Done()
 				defer func() { <-sem }() // release slot
 				log.Printf("🔍 Đang crawl: %s\n", url)
-				crawlDetail(url, baseURL)
+				crawlDocDetail(url, baseURL)
 			}(detailURL)
 		}
 	})
 	wg.Wait()
 }
 
-func crawlDetail(detailURL string, baseURL string) {
+func crawlDocDetail(detailURL string, baseURL string) {
 	resp, err := http.Get(detailURL)
 	if err != nil {
 		log.Println("Lỗi khi tải trang chi tiết:", err)

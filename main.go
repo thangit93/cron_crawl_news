@@ -5,5 +5,7 @@ import (
 )
 
 func main() {
-	sites.GetDocs()
+	//sites.GetDocs()
+
+	sites.GetNews()
 }
