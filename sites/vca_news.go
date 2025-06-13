@@ -14,10 +14,6 @@ func GetNews() {
 	baseURL := "https://vca.org.vn/"
 	url := baseURL + "tin-vca-c28.html"
 
-	if err := config.InitDB(); err != nil {
-		log.Fatalf("❌ Lỗi khởi tạo DB: %v", err)
-	}
-
 	resp, err := http.Get(url)
 	if err != nil {
 		log.Fatal(err)

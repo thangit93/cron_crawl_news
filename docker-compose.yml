@@ -4,8 +4,8 @@ services:
       dockerfile: ./docker/Dockerfile
       context: .
     volumes:
-#       - ./log.txt:/app/log.txt
-      - .:/app
+       - ./log.txt:/app/log.txt
+#      - .:/app
     container_name: crawler-app
     env_file:
       - .env
