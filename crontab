@@ -1,2 +1,2 @@
 # Run at everyhours
-0 * * * * /app/crawler >> /app/log.txt 2>&1
+* * * * * /app/crawler >> /app/log.txt 2>&1
