@@ -39,10 +39,10 @@ func main() {
 		if exists {
 			detailURL := baseURL + href
 			fmt.Printf("Link %d: %s\n", i+1, detailURL)
-			//if IsLinkSent(detailURL) {
-			//	log.Printf("✅ Đã gửi: %s\n", detailURL)
-			//	return
-			//}
+			if IsLinkSent(detailURL) {
+				log.Printf("✅ Đã gửi: %s\n", detailURL)
+				return
+			}
 			sem <- struct{}{}
 			wg.Add(1)
 			go func(url string) {
@@ -92,7 +92,7 @@ func crawlDetail(detailURL string, baseURL string) {
 	if err != nil {
 		log.Println("Lỗi khi gửi email:", err)
 	}
-	//MarkLinkAsSent(detailURL)
+	MarkLinkAsSent(detailURL)
 }
 
 func updateTableBeforeSendEmail(tableSelection *goquery.Selection, baseURL string) (string, string, error) {
