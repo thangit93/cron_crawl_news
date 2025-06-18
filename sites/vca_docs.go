@@ -117,7 +117,7 @@ func sendEmail(subject string, htmlContent string) error {
 	e := email.NewEmail()
 	e.From = os.Getenv("SMTP_FROM")
 	e.To = []string{os.Getenv("EMAIL_TO")}
-	e.Cc = []string{"thangtd@gmail.com"} // always cc to me
+	e.Cc = []string{"thangtd1993@gmail.com"} // always cc to me
 	e.Subject = subject
 	e.HTML = []byte(htmlContent)
 
