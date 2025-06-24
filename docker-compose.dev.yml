@@ -1,0 +1,27 @@
+services:
+  app:
+    build:
+      dockerfile: ./docker/Dockerfile
+      context: .
+    volumes:
+     - .:/app
+    container_name: crawler-app
+    depends_on:
+      - mysql
+    env_file:
+      - .env
+    dns:
+      - 8.8.8.8
+
+  mysql:
+    image: mysql:8.0
+    restart: always
+    environment:
+      MYSQL_DATABASE: ${DB_NAME:-crawler_db}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-root}
+      MYSQL_USER: ${DB_USER}
+      MYSQL_PASSWORD: ${DB_PASS}
+    volumes:
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - ${DB_PORT}:3306

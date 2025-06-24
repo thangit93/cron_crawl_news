@@ -2,17 +2,16 @@ package sites
 
 import (
 	"fmt"
-	"github.com/PuerkitoBio/goquery"
 	"log"
 	"net/http"
-	"strings"
+	"github.com/PuerkitoBio/goquery"
 	"sync"
 	"webcrawler/config"
 )
 
-func GetNews() {
-	baseURL := "https://vca.org.vn/"
-	url := baseURL + "tin-vca-c28.html"
+func GetDepartmentNews() {
+	baseURL := "https://soxaydung.hanoi.gov.vn/"
+	url := baseURL + "vi-vn/tim/ket-qua/bmjDoCDhu58geMOjIGjhu5lp"
 
 	resp, err := http.Get(url)
 	if err != nil {
@@ -25,15 +24,11 @@ func GetNews() {
 		log.Fatalf("Lỗi khi phân tích HTML: %v", err)
 	}
 
-	keywords := []string{"kỳ thi", "tuyển dụng", "thí sinh"}
-
 	var wg sync.WaitGroup
 	sem := make(chan struct{}, 5)
-
-	doc.Find(".title-5 a").Each(func(i int, s *goquery.Selection) {
+	doc.Find(".col-md-10 h4 a").Each(func(i int, s *goquery.Selection) {
 		title := s.Text()
-		if findKeyword(title, keywords) {
-			href, exists := s.Attr("href")
+		href, exists := s.Attr("href")
 			if exists {
 				detailURL := baseURL + href
 				fmt.Printf("Link %d: %s\n", i+1, detailURL)
@@ -47,25 +42,14 @@ func GetNews() {
 					defer wg.Done()
 					defer func() { <-sem }() // release slot
 					log.Printf("🔍 Đang crawl: %s\n", url)
-					crawlNewsDetail(detailURL, title)
+					crawlDepartmentNewsDetail(detailURL, title)
 				}(detailURL)
 			}
-		}
 	})
 	wg.Wait()
 }
 
-func findKeyword(s string, keywords []string) bool {
-	lower := strings.ToLower(s)
-	for _, kw := range keywords {
-		if strings.Contains(lower, kw) {
-			return true
-		}
-	}
-	return false
-}
-
-func crawlNewsDetail(detailURL string, emailTitle string) {
+func crawlDepartmentNewsDetail(detailURL string, emailTitle string) {
 	resp, err := http.Get(detailURL)
 	if err != nil {
 		log.Println("Lỗi khi tải trang chi tiết:", err)
@@ -79,7 +63,7 @@ func crawlNewsDetail(detailURL string, emailTitle string) {
 		return
 	}
 
-	contentSelection := docDetail.Find(".content-items").First()
+	contentSelection := docDetail.Find(".blog-page").First()
 	if contentSelection.Length() == 0 {
 		log.Println("⚠️ Không tìm thấy nội dung")
 		return
