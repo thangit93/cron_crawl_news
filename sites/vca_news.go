@@ -92,7 +92,7 @@ func crawlNewsDetail(detailURL string, emailTitle string) {
 		return
 	}
 
-	err = sendEmail(emailTitle, contentHtml)
+	err = config.SendEmail(emailTitle, contentHtml)
 	if err != nil {
 		log.Println("Lỗi khi gửi email:", err)
 	}

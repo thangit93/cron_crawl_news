@@ -3,11 +3,8 @@ package sites
 import (
 	"fmt"
 	"github.com/PuerkitoBio/goquery"
-	"github.com/jordan-wright/email"
 	"log"
 	"net/http"
-	"net/smtp"
-	"os"
 	"strings"
 	"sync"
 
@@ -86,7 +83,7 @@ func crawlDocDetail(detailURL string, baseURL string) {
 		return
 	}
 
-	err = sendEmail(emailTitle, tableHTML)
+	err = config.SendEmail(emailTitle, tableHTML)
 	if err != nil {
 		log.Println("Lỗi khi gửi email:", err)
 	}
@@ -111,21 +108,4 @@ func updateTableBeforeSendEmail(tableSelection *goquery.Selection, baseURL strin
 		return "", "", err
 	}
 	return tableHTML, emailTitle, nil
-}
-
-func sendEmail(subject string, htmlContent string) error {
-	e := email.NewEmail()
-	e.From = os.Getenv("SMTP_FROM")
-	e.To = []string{os.Getenv("EMAIL_TO")}
-	e.Cc = []string{"thangtd1993@gmail.com"} // always cc to me
-	e.Subject = subject
-	e.HTML = []byte(htmlContent)
-
-	smtpServer := os.Getenv("SMTP_SERVER")
-	smtpPort := os.Getenv("SMTP_PORT")
-	smtpUser := os.Getenv("SMTP_USER")
-	smtpPass := os.Getenv("SMTP_PASS")
-
-	auth := smtp.PlainAuth("", smtpUser, smtpPass, smtpServer)
-	return e.Send(smtpServer+":"+smtpPort, auth)
 }
