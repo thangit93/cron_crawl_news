@@ -10,6 +10,8 @@ services:
       - mysql
     env_file:
       - .env
+    dns:
+      - 8.8.8.8
 
   mysql:
     image: mysql:8.0

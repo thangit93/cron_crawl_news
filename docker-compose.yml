@@ -6,5 +6,7 @@ services:
     volumes:
        - ./log.txt:/app/log.txt
     container_name: crawler-app
+    dns:
+      - 8.8.8.8
     env_file:
       - .env
