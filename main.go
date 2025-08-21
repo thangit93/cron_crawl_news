@@ -5,9 +5,14 @@ import (
 	"sync"
 	"webcrawler/config"
 	"webcrawler/sites"
+
+	"github.com/joho/godotenv"
 )
 
 func main() {
+	if err := godotenv.Load(); err != nil {
+		log.Fatal("Không tìm thấy file .env")
+	}
 	if err := config.InitDB(); err != nil {
 		log.Fatalf("❌ Lỗi khởi tạo DB: %v", err)
 	}

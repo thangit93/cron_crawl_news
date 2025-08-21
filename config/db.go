@@ -17,9 +17,10 @@ func InitDB() error {
 	user := os.Getenv("DB_USER")
 	pass := os.Getenv("DB_PASS")
 	name := os.Getenv("DB_NAME")
+	tls := os.Getenv("DB_TLS")
 
-	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?tls=true&charset=utf8mb4&parseTime=True",
-		user, pass, host, port, name)
+	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?tls=%s&charset=utf8mb4&parseTime=True",
+		user, pass, host, port, name, tls)
 
 	var err error
 	DB, err = sql.Open("mysql", dsn)
