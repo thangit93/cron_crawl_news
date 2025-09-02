@@ -1,6 +1,7 @@
 package sites
 
 import (
+	"crypto/tls"
 	"fmt"
 	"github.com/PuerkitoBio/goquery"
 	"log"
@@ -14,7 +15,7 @@ import (
 func GetDocs() {
 	baseURL := "https://vca.org.vn/"
 	url := baseURL + "frontend/home/search?s=Th%C3%B4ng+b%C3%A1o+tuy%E1%BB%83n+d%E1%BB%A5ng&loaivanban=&issuing_agency=&year=&submit=T%C3%ACm+ki%E1%BA%BFm"
-
+	http.DefaultTransport.(*http.Transport).TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
 	resp, err := http.Get(url)
 	if err != nil {
 		log.Fatal(err)

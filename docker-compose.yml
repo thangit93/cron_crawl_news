@@ -5,6 +5,7 @@ services:
       context: .
     volumes:
        - ./log.txt:/app/log.txt
+       - ./.env:/app/.env
     container_name: crawler-app
     dns:
       - 8.8.8.8
