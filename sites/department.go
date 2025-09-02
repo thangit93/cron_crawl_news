@@ -1,10 +1,11 @@
 package sites
 
 import (
+	"crypto/tls"
 	"fmt"
+	"github.com/PuerkitoBio/goquery"
 	"log"
 	"net/http"
-	"github.com/PuerkitoBio/goquery"
 	"sync"
 	"webcrawler/config"
 )
@@ -12,7 +13,7 @@ import (
 func GetDepartmentNews() {
 	baseURL := "https://soxaydung.hanoi.gov.vn/"
 	url := baseURL + "vi-vn/tim/ket-qua/bmjDoCDhu58geMOjIGjhu5lp"
-
+	http.DefaultTransport.(*http.Transport).TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
 	resp, err := http.Get(url)
 	if err != nil {
 		log.Fatal(err)
@@ -29,22 +30,22 @@ func GetDepartmentNews() {
 	doc.Find(".col-md-10 h4 a").Each(func(i int, s *goquery.Selection) {
 		title := s.Text()
 		href, exists := s.Attr("href")
-			if exists {
-				detailURL := baseURL + href
-				fmt.Printf("Link %d: %s\n", i+1, detailURL)
-				if config.IsLinkSent(detailURL) {
-					log.Printf("✅ Đã gửi: %s\n", detailURL)
-					return
-				}
-				sem <- struct{}{}
-				wg.Add(1)
-				go func(url string) {
-					defer wg.Done()
-					defer func() { <-sem }() // release slot
-					log.Printf("🔍 Đang crawl: %s\n", url)
-					crawlDepartmentNewsDetail(detailURL, title)
-				}(detailURL)
+		if exists {
+			detailURL := baseURL + href
+			fmt.Printf("Link %d: %s\n", i+1, detailURL)
+			if config.IsLinkSent(detailURL) {
+				log.Printf("✅ Đã gửi: %s\n", detailURL)
+				return
 			}
+			sem <- struct{}{}
+			wg.Add(1)
+			go func(url string) {
+				defer wg.Done()
+				defer func() { <-sem }() // release slot
+				log.Printf("🔍 Đang crawl: %s\n", url)
+				crawlDepartmentNewsDetail(detailURL, title)
+			}(detailURL)
+		}
 	})
 	wg.Wait()
 }
