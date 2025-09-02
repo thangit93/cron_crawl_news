@@ -86,6 +86,7 @@ func crawlDocDetail(detailURL string, baseURL string) {
 	err = config.SendEmail(emailTitle, tableHTML)
 	if err != nil {
 		log.Println("Lỗi khi gửi email:", err)
+		return
 	}
 	config.MarkLinkAsSent(detailURL)
 }
