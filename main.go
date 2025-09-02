@@ -11,7 +11,7 @@ import (
 
 func main() {
 	if err := godotenv.Load(); err != nil {
-		log.Fatal("Không tìm thấy file .env")
+		log.Println("Không tìm thấy file .env, nên sẽ dùng env của OS")
 	}
 	if err := config.InitDB(); err != nil {
 		log.Fatalf("❌ Lỗi khởi tạo DB: %v", err)
