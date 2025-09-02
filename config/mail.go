@@ -1,16 +1,17 @@
 package config
 
 import (
-	"github.com/jordan-wright/email"
 	"net/smtp"
 	"os"
+
+	"github.com/jordan-wright/email"
 )
 
 func SendEmail(subject string, htmlContent string) error {
 	e := email.NewEmail()
 	e.From = os.Getenv("SMTP_FROM")
 	e.To = []string{os.Getenv("EMAIL_TO")}
-	e.Cc = []string{"thangtd1993@gmail.com"} // always cc to me
+	e.Cc = []string{os.Getenv("EMAIL_CC")} // always cc to me
 	e.Subject = subject
 	e.HTML = []byte(htmlContent)
 

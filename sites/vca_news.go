@@ -95,6 +95,7 @@ func crawlNewsDetail(detailURL string, emailTitle string) {
 	err = config.SendEmail(emailTitle, contentHtml)
 	if err != nil {
 		log.Println("Lỗi khi gửi email:", err)
+		return
 	}
 	config.MarkLinkAsSent(detailURL)
 }
