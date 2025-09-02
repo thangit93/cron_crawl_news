@@ -1,6 +1,7 @@
 package sites
 
 import (
+	"crypto/tls"
 	"fmt"
 	"github.com/PuerkitoBio/goquery"
 	"log"
@@ -13,7 +14,7 @@ import (
 func GetNews() {
 	baseURL := "https://vca.org.vn/"
 	url := baseURL + "tin-vca-c28.html"
-
+	http.DefaultTransport.(*http.Transport).TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
 	resp, err := http.Get(url)
 	if err != nil {
 		log.Fatal(err)
