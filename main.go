@@ -17,7 +17,7 @@ func main() {
 		log.Fatalf("❌ Lỗi khởi tạo DB: %v", err)
 	}
 	var wg = sync.WaitGroup{}
-	wg.Add(4)
+	wg.Add(5)
 
 	go func() {
 		defer wg.Done()
@@ -34,6 +34,10 @@ func main() {
 	go func() {
 		defer wg.Done()
 		sites.GetHvtpNews()
+	}()
+	go func() {
+		defer wg.Done()
+		sites.GetBvhttdlNews()
 	}()
 	wg.Wait()
 }
