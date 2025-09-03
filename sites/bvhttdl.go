@@ -55,6 +55,7 @@ func GetBvhttdlNews() {
 			}
 		}
 	})
+	wg.Wait()
 }
 
 func crawlBvhttdlNewsDetail(title string, detailURL string) {
