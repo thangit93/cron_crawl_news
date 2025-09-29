@@ -5,14 +5,15 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
-	"github.com/PuerkitoBio/goquery"
-	"golang.org/x/net/html"
 	"log"
 	"net/http"
 	"regexp"
 	"sync"
 	"webcrawler/config"
 	"webcrawler/helpers"
+
+	"github.com/PuerkitoBio/goquery"
+	"golang.org/x/net/html"
 )
 
 type File struct {
@@ -24,7 +25,7 @@ const MAX_BVHTTDL_DAYS = 90
 
 func GetBvhttdlNews() {
 	baseURL := "https://bvhttdl.gov.vn/"
-	url := baseURL + "van-ban-quan-ly.htm?keyword=tuyển+dụng&nhom=2&coquan=0&theloai=28&linhvuc=0"
+	url := baseURL + "van-ban-quan-ly.htm?keyword=tuyển&nhom=0&coquan=0&theloai=28&linhvuc=0&year=0"
 	http.DefaultTransport.(*http.Transport).TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
 	resp, err := http.Get(url)
 	if err != nil {
