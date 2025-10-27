@@ -51,4 +51,5 @@ func MarkLinkAsSent(url string) {
 	if err != nil {
 		log.Println("Lỗi ghi link đã gửi:", err)
 	}
+	log.Println("Đã gửi mail thành công: ", url)
 }

@@ -35,9 +35,14 @@ func main() {
 		defer wg.Done()
 		sites.GetHvtpNews()
 	}()
+	// Tam thoi khong crawl
+	// go func() {
+	// 	defer wg.Done()
+	// 	sites.GetBvhttdlNews()
+	// }()
 	go func() {
 		defer wg.Done()
-		sites.GetBvhttdlNews()
+		sites.GetBvhhNews()
 	}()
 	wg.Wait()
 }

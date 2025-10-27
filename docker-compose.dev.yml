@@ -19,7 +19,7 @@ services:
     environment:
       MYSQL_DATABASE: ${DB_NAME:-crawler_db}
       MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-root}
-      MYSQL_USER: ${DB_USERL:-crawler_db}
+      MYSQL_USER: ${DB_USER:-crawler_db}
       MYSQL_PASSWORD: ${DB_PASS:-crawler_db}
     volumes:
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql
