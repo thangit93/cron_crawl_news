@@ -1,3 +1,6 @@
 .env
-log.txt
 crawler
+document
+keys/
+crawler.log
+document.log

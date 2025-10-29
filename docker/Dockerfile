@@ -5,10 +5,15 @@ FROM golang:1.24.3-alpine
 RUN apk add --no-cache tzdata && cp /usr/share/zoneinfo/Asia/Ho_Chi_Minh /etc/localtime && echo "Asia/Ho_Chi_Minh" > /etc/timezone
 
 WORKDIR /app
+
+RUN touch /app/crawler.log && touch /app/document.log
+
 COPY . .
 RUN go mod download
 
-RUN go build -o crawler
+# Build site crawler
+RUN go build -o crawler ./cmd/sites && \
+    go build -o document ./cmd/documents
 
 COPY crontab /etc/crontabs/root
 # Start cron in foreground
