@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
@@ -17,15 +18,12 @@ import (
 	"google.golang.org/api/sheets/v4"
 )
 
-// Cấu hình
 const (
 	spreadsheetID = "12zg3ELZoHwZE0oPC0mKbrQLtWg726UBoQFo4guXPLrQ"
-	rootFolderID  = "1vEXK_lzpWmELbpNQQKjZ6EK2O05oQMO5"
 )
 
 var (
 	sheetSvc *sheets.Service
-	driveSvc *drive.Service
 )
 
 func main() {
@@ -38,85 +36,159 @@ func main() {
 		log.Fatalf("Không tạo được Sheets service: %v", err)
 	}
 
-	driveSvc, err = drive.NewService(ctx, option.WithHTTPClient(client))
-	if err != nil {
-		log.Fatalf("Không tạo được Drive service: %v", err)
-	}
-
+	// Danh sách sheet
 	sheetsList := []string{"Lớp 5", "Lớp 9", "Lớp 12"}
 
 	for _, sh := range sheetsList {
-		fmt.Printf("\n📘 Đang xử lý sheet: %s\n", sh)
-		readSheet(ctx, sh)
+		fmt.Println("Đang xử lý:", sh)
+		// Hệ thống sẽ dừng khi gặp 1 nhóm cần tải
+		if processOneGroup(ctx, sh) {
+			return
+		}
 	}
+
+	fmt.Println("Không còn nhóm nào cần tải.")
 }
 
-// ---- Đọc và xử lý dữ liệu trong sheet ----
-func readSheet(ctx context.Context, sheetName string) {
+// ---------------------------------------------------------------
+// XỬ LÝ 1 NHÓM DUY NHẤT (Lớp + Môn + NXB)
+// ---------------------------------------------------------------
+func processOneGroup(ctx context.Context, sheetName string) bool {
 	readRange := fmt.Sprintf("%s!A2:G", sheetName)
 	resp, err := sheetSvc.Spreadsheets.Values.Get(spreadsheetID, readRange).Do()
 	if err != nil {
-		log.Printf("❌ Lỗi sheet %s: không đọc được sheet: %v", sheetName, err)
-		return
+		log.Printf("Lỗi đọc sheet %s: %v", sheetName, err)
+		return false
 	}
 
 	var currentSubject string
+
+	// Thứ tự ưu tiên NXB
+	nxbList := []struct {
+		name    string
+		linkIdx int
+		markIdx int
+	}{
+		{"KNTT", 1, 2}, // B - C
+		{"CTST", 3, 4}, // D - E
+		{"CD", 5, 6},   // F - G
+	}
+
 	for i, row := range resp.Values {
 		if len(row) == 0 {
 			continue
 		}
 
-		// Nếu cột A có tên môn mới
-		if len(row) > 0 && row[0] != "" {
+		// Cột A: chủ đề mới
+		if row[0] != "" {
 			currentSubject = strings.TrimSpace(fmt.Sprint(row[0]))
 		}
 		if currentSubject == "" {
 			continue
 		}
 
-		// KNTT
-		if len(row) > 2 {
-			processPublisher(sheetName, currentSubject, "KNTT", row, i+2, 1, 2, "C")
-		}
-		// CTST
-		if len(row) > 4 {
-			processPublisher(sheetName, currentSubject, "CTST", row, i+2, 3, 4, "E")
-		}
-		// CD
-		if len(row) > 6 {
-			processPublisher(sheetName, currentSubject, "CD", row, i+2, 5, 6, "G")
+		rowNum := i + 2
+
+		// Duyệt NXB theo đúng thứ tự B → D → F
+		for _, nxb := range nxbList {
+			link := getSafe(row, nxb.linkIdx)
+			mark := strings.ToLower(getSafe(row, nxb.markIdx))
+
+			if link == "" || !isValidLink(link) {
+				continue
+			}
+
+			if mark == "x" {
+				continue
+			}
+
+			// Gặp nhóm đầu tiên cần tải → tải 1 nhóm và dừng
+			return downloadGroup(sheetName, currentSubject, nxb.name, rowNum, nxb.linkIdx, nxb.markIdx)
 		}
 	}
+
+	return false
 }
 
-func processPublisher(sheetName, subject, publisher string, row []interface{}, rowNum, linkIdx, markIdx int, markCol string) {
+// an toàn lấy giá trị từ hàng
+func getSafe(row []interface{}, idx int) string {
+	if row == nil || idx < 0 || idx >= len(row) {
+		return ""
+	}
+	return strings.TrimSpace(fmt.Sprint(row[idx]))
+}
+
+// Kiểm tra nhóm có link chưa tải không
+func hasPending(row []interface{}, linkIdx, markIdx int) bool {
+	if len(row) <= markIdx {
+		return false
+	}
 	link := strings.TrimSpace(fmt.Sprint(row[linkIdx]))
-	status := strings.ToLower(strings.TrimSpace(fmt.Sprint(row[markIdx])))
-
-	// Bỏ qua nếu không có link hợp lệ
 	if link == "" || !isValidLink(link) {
-		return
+		return false
 	}
-
-	// Nếu đã có "x" thì bỏ qua file này
-	if status == "x" {
-		log.Printf("✅ Bỏ qua file đã tải: [Sheet: %s] [Môn: %s] [NXB: %s] [Dòng: %d]", sheetName, subject, publisher, rowNum)
-		return
-	}
-
-	// Nếu chưa có "x" → tiến hành tải và upload
-	log.Printf("⬇️  Đang tải file: [Sheet: %s] [Môn: %s] [NXB: %s] [Dòng: %d] → %s", sheetName, subject, publisher, rowNum, link)
-	err := downloadAndUpload(sheetName, subject, publisher, link)
-	if err != nil {
-		log.Printf("⚠️  Không tải được file: [Sheet: %s] [Môn: %s] [NXB: %s] [Dòng: %d] | Lỗi: %v", sheetName, subject, publisher, rowNum, err)
-	} else {
-		markDownloaded(sheetName, rowNum, markCol)
-		log.Printf("✅ Hoàn tất: [Sheet: %s] [Môn: %s] [NXB: %s] [Dòng: %d]", sheetName, subject, publisher, rowNum)
-	}
+	status := strings.ToLower(strings.TrimSpace(fmt.Sprint(row[markIdx])))
+	return status != "x"
 }
 
-// ---- Tải file và upload lên Drive ----
-func downloadAndUpload(sheetName, subject, publisher, url string) error {
+// ---------------------------------------------------------------
+// TẢI TOÀN BỘ LINK CỦA 1 NHÓM RỒI DỪNG CHƯƠNG TRÌNH
+// ---------------------------------------------------------------
+func downloadGroup(sheetName, subject, publisher string, startRow, linkIdx, markIdx int) bool {
+	fmt.Printf("\n=== BẮT ĐẦU NHÓM: %s → %s → %s ===\n", sheetName, subject, publisher)
+
+	readRange := fmt.Sprintf("%s!A2:G", sheetName)
+	resp, _ := sheetSvc.Spreadsheets.Values.Get(spreadsheetID, readRange).Do()
+
+	var wg sync.WaitGroup
+	semaphore := make(chan struct{}, 5)
+
+	for i := startRow - 2; i < len(resp.Values); i++ {
+		row := resp.Values[i]
+		rowNum := i + 2
+
+		mon := getSafe(row, 0)
+
+		if mon != "" && mon != subject && rowNum != startRow {
+			break
+		}
+
+		link := getSafe(row, linkIdx)
+		mark := strings.ToLower(getSafe(row, markIdx))
+
+		if link == "" || !isValidLink(link) {
+			continue
+		}
+		if mark == "x" {
+			continue
+		}
+
+		wg.Add(1)
+		semaphore <- struct{}{}
+
+		go func(url string, r int, c int) {
+			defer wg.Done()
+			defer func() { <-semaphore }()
+
+			if err := downloadFileLocal(sheetName, subject, publisher, url); err != nil {
+				log.Println("Lỗi tải:", url, err)
+				return
+			}
+
+			markDownloaded(sheetName, r, c)
+
+		}(link, rowNum, markIdx)
+	}
+
+	wg.Wait()
+	fmt.Println("=== HOÀN TẤT NHÓM — DỪNG CHƯƠNG TRÌNH ===")
+	return true
+}
+
+// ---------------------------------------------------------------
+// TẢI FILE XUỐNG LOCAL
+// ---------------------------------------------------------------
+func downloadFileLocal(sheetName, subject, publisher, url string) error {
 	resp, err := http.Get(url)
 	if err != nil {
 		return fmt.Errorf("lỗi tải file: %v", err)
@@ -124,93 +196,74 @@ func downloadAndUpload(sheetName, subject, publisher, url string) error {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != 200 {
-		return fmt.Errorf("HTTP %d khi tải %s", resp.StatusCode, url)
+		return fmt.Errorf("HTTP %d", resp.StatusCode)
 	}
 
-	fileName := filepath.Base(url)
-	classFolderID := ensureFolderExists(sheetName, rootFolderID)
-	subjectFolderID := ensureFolderExists(subject, classFolderID)
-	pubFolderID := ensureFolderExists(publisher, subjectFolderID)
+	rawName := filepath.Base(url)
+	fileName := sanitize(rawName)
 
-	driveFile := &drive.File{
-		Name:    fileName,
-		Parents: []string{pubFolderID},
-	}
+	savePath := filepath.Join("documents", sheetName, subject, publisher)
+	os.MkdirAll(savePath, os.ModePerm)
 
-	_, err = driveSvc.Files.Create(driveFile).Media(resp.Body).Do()
+	filePath := filepath.Join(savePath, fileName)
+	out, err := os.Create(filePath)
 	if err != nil {
-		return fmt.Errorf("không upload nội dung: %v", err)
+		return err
 	}
+	defer out.Close()
+
+	_, err = out.ReadFrom(resp.Body)
+	if err != nil {
+		return err
+	}
+
+	fmt.Println("Tải thành công:", filePath)
 	return nil
 }
 
-// ---- Tạo folder nếu chưa tồn tại ----
-func ensureFolderExists(name, parentID string) string {
-	q := fmt.Sprintf("name='%s' and mimeType='application/vnd.google-apps.folder' and '%s' in parents and trashed=false", name, parentID)
-	r, err := driveSvc.Files.List().Q(q).Fields("files(id, name)").Do()
-	if err == nil && len(r.Files) > 0 {
-		return r.Files[0].Id
+// Loại ký tự cấm trong tên file
+func sanitize(name string) string {
+	invalid := []string{"/", "\\", "?", "%", "*", ":", "|", "\"", "<", ">"}
+	for _, c := range invalid {
+		name = strings.ReplaceAll(name, c, "_")
 	}
-
-	folder := &drive.File{
-		Name:     name,
-		MimeType: "application/vnd.google-apps.folder",
-		Parents:  []string{parentID},
-	}
-	created, err := driveSvc.Files.Create(folder).Do()
-	if err != nil {
-		log.Fatalf("Không tạo được thư mục %s: %v", name, err)
-	}
-	return created.Id
+	return name
 }
 
-// ---- Đánh dấu X sau khi tải ----
-func markDownloaded(sheetName string, row int, col string) {
-	writeRange := fmt.Sprintf("%s!%s%d", sheetName, col, row)
-	valueRange := &sheets.ValueRange{
+// ---------------------------------------------------------------
+func markDownloaded(sheetName string, row int, col int) {
+	colLetter := string(rune('A' + col))
+	rangeStr := fmt.Sprintf("%s!%s%d", sheetName, colLetter, row)
+
+	value := &sheets.ValueRange{
 		Values: [][]interface{}{{"x"}},
 	}
-	_, err := sheetSvc.Spreadsheets.Values.Update(spreadsheetID, writeRange, valueRange).
+
+	_, err := sheetSvc.Spreadsheets.Values.Update(spreadsheetID, rangeStr, value).
 		ValueInputOption("RAW").Do()
+
 	if err != nil {
-		log.Printf("⚠️ Không ghi được dấu x tại %s: %v", writeRange, err)
+		log.Println("Không đánh dấu được:", rangeStr)
 	} else {
-		log.Printf("✏️ Đánh dấu x tại %s", writeRange)
+		log.Println("Đã đánh dấu:", rangeStr)
 	}
 }
 
-// ---- Hàm OAuth ----
 func getClient(ctx context.Context) *http.Client {
-	b, err := os.ReadFile("keys/credentials.json")
-	if err != nil {
-		log.Fatalf("Không đọc được credentials.json: %v", err)
-	}
-
-	config, err := google.ConfigFromJSON(b, drive.DriveFileScope, sheets.SpreadsheetsScope)
-	if err != nil {
-		log.Fatalf("Không parse được credentials.json: %v", err)
-	}
-
+	b, _ := os.ReadFile("keys/credentials.json")
+	config, _ := google.ConfigFromJSON(b, drive.DriveFileScope, sheets.SpreadsheetsScope)
 	tok := getTokenFromFile("keys/token.json")
 	return config.Client(ctx, tok)
 }
 
 func getTokenFromFile(file string) *oauth2.Token {
-	f, err := os.Open(file)
-	if err != nil {
-		log.Fatalf("Không mở được %s: %v", file, err)
-	}
+	f, _ := os.Open(file)
 	defer f.Close()
-
 	var token oauth2.Token
-	err = json.NewDecoder(f).Decode(&token)
-	if err != nil {
-		log.Fatalf("Không parse được token.json: %v", err)
-	}
+	json.NewDecoder(f).Decode(&token)
 	return &token
 }
 
-// ---- Tiện ích ----
 func isValidLink(s string) bool {
 	return strings.HasPrefix(s, "http://") || strings.HasPrefix(s, "https://")
 }
