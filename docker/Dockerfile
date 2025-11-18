@@ -2,7 +2,7 @@
 FROM golang:1.24.3-alpine
 
 # Set timezone (UTC+7)
-RUN apk add --no-cache tzdata && cp /usr/share/zoneinfo/Asia/Ho_Chi_Minh /etc/localtime && echo "Asia/Ho_Chi_Minh" > /etc/timezone
+RUN apk add --no-cache tzdata curl && cp /usr/share/zoneinfo/Asia/Ho_Chi_Minh /etc/localtime && echo "Asia/Ho_Chi_Minh" > /etc/timezone
 
 WORKDIR /app
 
